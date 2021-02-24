@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from pyfiglet import Figlet
 
-from .effects import COLORS, EFFECTS
+from effects import COLORS, EFFECTS
 
 
 @dataclass

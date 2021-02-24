@@ -6,7 +6,7 @@ import warnings
 import yaml
 from mistune import markdown
 
-from .slide import (
+from slide import (
     Slide,
     Heading,
     Paragraph,
@@ -56,7 +56,9 @@ class Markdown(object):
                     not_images = [c for c in obj["children"] if c["type"] != "image"]
 
                     for image in images:
-                        image["src"] = os.path.join(self.dirname, os.path.expanduser(image["src"]))
+                        image["src"] = os.path.join(
+                            self.dirname, os.path.expanduser(image["src"])
+                        )
 
                         if image["alt"] == "codio":
                             with open(image["src"], "r") as f:

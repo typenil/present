@@ -65,17 +65,15 @@ class Codio(DynamicRenderer):
 
             if self._state.get(i - 1) is not None and not self._state[i - 1]["end"]:
                 return None, None
-            else:
-                c = self._code[i]["in"][: self._state[i]["len"]]
-                self._state[i]["len"] += 1
-                return c, None
+            c = self._code[i]["in"][: self._state[i]["len"]]
+            self._state[i]["len"] += 1
+            return c, None
 
         if not self._code[i]["in"] and self._code[i]["out"]:
             if self._state.get(i - 1) is not None and not self._state[i - 1]["end"]:
                 return None, None
-            else:
-                self._state[i]["end"] = True
-                return None, self._code[i]["out"]
+            self._state[i]["end"] = True
+            return None, self._code[i]["out"]
 
     def _render_now(self):
         x = y = 1

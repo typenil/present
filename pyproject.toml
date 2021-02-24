@@ -1,3 +1,38 @@
+[tool.poetry]
+name = "present.py"
+version = "0.6.0"
+description = "A terminal-based presentation tool with colors and effects."
+license = "Apache-2.0"
+authors = ["Vinayak Mehta <vmehta94@gmail.com>"]
+maintainers = ["Matt White <code@typenil.com>"]
+readme = "README.md"
+repository = "https://github.com/typenil/present"
+classifiers = [
+	"Environment :: Console",
+	"License :: OSI Approved :: Apache Software License",
+	"Programming Language :: Python",
+	"Programming Language :: Python :: 3.7",
+	"Programming Language :: Python :: 3.8",
+	"Programming Language :: Python :: 3.9",
+	"Programming Language :: Python :: 3 :: Only",
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+asciimatics = "^1.12.0"
+click = "^7.1.2"
+mistune = "^0.8.4"
+pyfiglet = "^0.8.post1"
+PyYAML = "^5.4.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^20.8b1"
+mypy = "^0.812"
+flake8 = "^3.8.4"
+pylint = "^2.7.1"
+bandit = "^1.7.0"
+
 [build-system]
-requires = ["setuptools >= 40.6.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
