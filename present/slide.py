@@ -1,23 +1,32 @@
-# -*- coding: utf-8 -*-
-
 import os
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+from functools import cached_property
 
 from pyfiglet import Figlet
+from loguru import logger
 
 from effects import COLORS, EFFECTS
 
 
 @dataclass
-class Heading(object):
-    type: str = "heading"
-    obj: dict = None
+class Renderable:
+    obj: dict = field(default_factory=dict)
     fg: int = 0
     attr: int = 2  # Screen.A_NORMAL
     normal: int = 2  # Screen.A_NORMAL
     bg: int = 7
+
+    @property
+    def type(self) -> str:
+        raise NotImplementedError()
+
+
+@dataclass
+class Heading(Renderable):
+    type: str = "heading"
 
     @property
     def size(self):
@@ -43,13 +52,8 @@ class Heading(object):
 
 
 @dataclass
-class List(object):
+class List(Renderable):
     type: str = "list"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     def walk(self, obj, text=None, level=0):
         if text is None:
@@ -73,22 +77,17 @@ class List(object):
 
 
 @dataclass
-class BlockCode(object):
+class BlockCode(Renderable):
     type: str = "code"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @staticmethod
     def pad(s, fill=" "):
         lines = s.splitlines()
-        max_len = max(len(l) for l in lines)
+        max_len = max(len(line) for line in lines)
         top = bottom = " " * (max_len + 2)
 
-        lines = [l.ljust(max_len + 1, fill) for l in lines]
-        lines = [" " + l for l in lines]
+        lines = [line.ljust(max_len + 1, fill) for line in lines]
+        lines = [" " + line for line in lines]
         lines.insert(0, top)
         lines.append(bottom)
 
@@ -103,23 +102,18 @@ class BlockCode(object):
 
 
 @dataclass
-class Codio(object):
+class Codio(Renderable):
     type: str = "codio"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def speed(self):
         _speed = self.obj["speed"]
 
         if _speed < 1:
-            warnings.warn("Codio speed < 1, setting it to 1")
+            logger.warn("Codio speed < 1, setting it to 1")
             _speed = 1
         elif _speed > 10:
-            warnings.warn("Codio speed > 10, setting it to 10")
+            logger.warn("Codio speed > 10, setting it to 10")
             _speed = 10
 
         return 11 - _speed
@@ -129,12 +123,12 @@ class Codio(object):
         _width = 0
         _terminal_width = int(shutil.get_terminal_size()[0] / 4)
 
-        for l in self.obj["lines"]:
-            prompt = l.get("prompt", "")
-            inp = l.get("in", "")
-            out = l.get("out", "")
+        for line in self.obj["lines"]:
+            prompt = line.get("prompt", "")
+            inp = line.get("in", "")
+            out = line.get("out", "")
 
-            if l.get("progress") is not None and l["progress"]:
+            if line.get("progress") is not None and line["progress"]:
                 _magic_width = _terminal_width
             else:
                 _magic_width = 0
@@ -153,9 +147,9 @@ class Codio(object):
     def size(self):
         lines = len(self.obj["lines"])
 
-        for l in self.obj["lines"]:
-            inp = l.get("in", "")
-            out = l.get("out", "")
+        for line in self.obj["lines"]:
+            inp = line.get("in", "")
+            out = line.get("out", "")
             if inp and out:
                 lines += 1
 
@@ -183,7 +177,7 @@ class Codio(object):
                     continue
 
                 # if only prompt is present, print it all at once
-                if prompt and not inp and not out:
+                if not inp and not out:
                     out = prompt
                     prompt = ""
 
@@ -201,24 +195,13 @@ class Codio(object):
 
 
 @dataclass(init=False)
-class Image(object):
-    def __init__(
-        self,
-        type: str = "image",
-        obj: dict = None,
-        fg: int = 0,
-        attr: int = 2,
-        normal: int = 2,
-        bg: int = 7,
-    ):
-        self.type = type
-        self.obj = obj
-        self.fg = fg
-        self.attr = attr
-        self.normal = normal
-        self.bg = bg
-        if not os.path.exists(self.obj["src"]):
-            raise FileNotFoundError(f"{self.obj['src']} does not exist")
+class Image(Renderable):
+    type: str = "image"
+
+    def __post_init__(self):
+        src = self.obj.get("src")
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"{src} does not exist")
 
     @property
     def size(self):
@@ -230,13 +213,8 @@ class Image(object):
 
 
 @dataclass
-class BlockHtml(object):
+class BlockHtml(Renderable):
     type: str = "html"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -252,13 +230,8 @@ class BlockHtml(object):
 
 
 @dataclass
-class Text(object):
+class Text(Renderable):
     type: str = "text"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -269,13 +242,9 @@ class Text(object):
 
 
 @dataclass
-class Codespan(object):
+class Codespan(Renderable):
     type: str = "codespan"
-    obj: dict = None
-    fg: int = 0
     attr: int = 3  # Screen.A_REVERSE
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -290,13 +259,9 @@ class Codespan(object):
 
 
 @dataclass
-class Strong(object):
+class Strong(Renderable):
     type: str = "strong"
-    obj: dict = None
-    fg: int = 0
     attr: int = 1  # Screen.A_BOLD
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -311,13 +276,8 @@ class Strong(object):
 
 
 @dataclass
-class Emphasis(object):
+class Emphasis(Renderable):
     type: str = "emphasis"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -329,13 +289,8 @@ class Emphasis(object):
 
 
 @dataclass
-class Link(object):
+class Link(Renderable):
     type: str = "link"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -346,13 +301,8 @@ class Link(object):
 
 
 @dataclass
-class Paragraph(object):
+class Paragraph(Renderable):
     type: str = "paragraph"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -372,13 +322,8 @@ class Paragraph(object):
 
 
 @dataclass
-class BlockQuote(object):
+class BlockQuote(Renderable):
     type: str = "quote"
-    obj: dict = None
-    fg: int = 0
-    attr: int = 2  # Screen.A_NORMAL
-    normal: int = 2  # Screen.A_NORMAL
-    bg: int = 7
 
     @property
     def size(self):
@@ -395,7 +340,7 @@ class BlockQuote(object):
         return "\n".join(text)
 
 
-class Slide(object):
+class Slide:
     def __init__(self, elements=None):
         self.elements = elements
         self.has_style = False
@@ -403,69 +348,88 @@ class Slide(object):
         self.has_image = False
         self.has_code = False
         self.has_codio = False
-        self.style = {}
         self.effect = None
         self.fg_color = 0
         self.bg_color = 7
 
-        _elements = []
+    @property
+    def style(self):
+        return self._style
 
-        for e in self.elements:
+    @style.setter
+    def style(self, style: dict):
+
+        # TODO: support everything!
+        if style.get("effect") is not None:
+            if style["effect"] not in EFFECTS:
+                raise ValueError(f"Effect {style['effect']} is not supported")
+            self.has_effect = True
+            self.effect = style["effect"]
+            self.fg_color, self.bg_color = 7, 0
+
+        if style.get("fg") is not None:
+            try:
+                self.fg_color = COLORS[style["fg"]]
+            except KeyError:
+                raise ValueError(f"Color {style['fg']} is not supported")
+
+        if style.get("bg") is not None:
+            try:
+                self.bg_color = COLORS[style["bg"]]
+            except KeyError:
+                raise ValueError(f"Color {style['bg']} is not supported")
+
+        if self.has_effect and (
+            style.get("fg") is not None or style.get("bg") is not None
+        ):
+            raise ValueError(
+                "Effects and colors on the same slide are not supported"
+            )
+
+        if self.has_effect and self.has_code:
+            raise ValueError(
+                "Effects and code on the same slide are not supported"
+            )
+
+        self._style = style.copy()
+
+    @property
+    def elements(self):
+        return self._elements
+
+    @elements.setter
+    def elements(self, elements):
+        for e in elements:
             # TODO: raise warning if multiple styles
-            if e.type == "html":
+            if e.type == "code":
+                self.has_code = True
+
+            elif e.type == "codio":
+                self.has_codio = True
+
+            elif e.type == "html":
                 if e.style:
                     self.has_style = True
                     self.style = e.style
                 # remove html comments
                 continue
 
-            if e.type == "image":
+            elif e.type == "image":
                 self.has_image = True
 
-            if e.type == "code":
-                self.has_code = True
-
-            if e.type == "codio":
-                self.has_codio = True
-
-            _elements.append(e)
-
-        self.elements = _elements
-
-        # TODO: support everything!
-        if self.style.get("effect") is not None:
-            if self.style["effect"] not in EFFECTS:
-                raise ValueError(f"Effect {self.style['effect']} is not supported")
-            self.has_effect = True
-            self.effect = self.style["effect"]
-
-        if self.style.get("fg") is not None:
-            try:
-                self.fg_color = COLORS[self.style["fg"]]
-            except KeyError:
-                raise ValueError(f"Color {self.style['fg']} is not supported")
-
-        if self.style.get("bg") is not None:
-            try:
-                self.bg_color = COLORS[self.style["bg"]]
-            except KeyError:
-                raise ValueError(f"Color {self.style['bg']} is not supported")
-
-        if self.has_effect and (
-            self.style.get("fg") is not None or self.style.get("bg") is not None
-        ):
-            raise ValueError("Effects and colors on the same slide are not supported")
-
-        if self.has_effect and self.has_code:
-            raise ValueError("Effects and code on the same slide are not supported")
-
         if self.has_effect:
-            self.fg_color, self.bg_color = 7, 0
+            # apply fg and bg color to all elements
+            for e in self.elements:
+                e.fg = self.fg_color
+                e.bg = self.bg_color
 
-        # apply fg and bg color to all elements
-        for e in self.elements:
-            e.fg = self.fg_color
-            e.bg = self.bg_color
+        self._elements = elements
 
     def __repr__(self):
-        return f"<Slide elements={self.elements} has_style={self.has_style} has_code={self.has_code} fg_color={self.fg_color} bg_color={self.bg_color}>"
+        return (
+            f"<Slide elements={self.elements} "
+            f"has_style={self.has_style} "
+            f"has_code={self.has_code} "
+            f"fg_color={self.fg_color} "
+            f"bg_color={self.bg_color}>"
+        )

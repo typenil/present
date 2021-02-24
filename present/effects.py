@@ -51,7 +51,8 @@ class Codio(DynamicRenderer):
 
     def _reset(self):
         self._state = {
-            i: {"len": 0, "start": False, "end": False} for i in range(len(self._code))
+            i: {"len": 0, "start": False, "end": False}
+            for i in range(len(self._code))
         }
 
     def _get_code(self, i):
@@ -63,14 +64,20 @@ class Codio(DynamicRenderer):
                 self._state[i]["end"] = True
                 return self._code[i]["in"], self._code[i]["out"]
 
-            if self._state.get(i - 1) is not None and not self._state[i - 1]["end"]:
+            if (
+                self._state.get(i - 1) is not None
+                and not self._state[i - 1]["end"]
+            ):
                 return None, None
             c = self._code[i]["in"][: self._state[i]["len"]]
             self._state[i]["len"] += 1
             return c, None
 
         if not self._code[i]["in"] and self._code[i]["out"]:
-            if self._state.get(i - 1) is not None and not self._state[i - 1]["end"]:
+            if (
+                self._state.get(i - 1) is not None
+                and not self._state[i - 1]["end"]
+            ):
                 return None, None
             self._state[i]["end"] = True
             return None, self._code[i]["out"]

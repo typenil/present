@@ -24,6 +24,7 @@ click = "^7.1.2"
 mistune = "^0.8.4"
 pyfiglet = "^0.8.post1"
 PyYAML = "^5.4.1"
+loguru = "^0.5.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -32,6 +33,19 @@ mypy = "^0.812"
 flake8 = "^3.8.4"
 pylint = "^2.7.1"
 bandit = "^1.7.0"
+
+[tool.black]
+line-length = 79
+target-version = ['py36','py37','py38']
+skip-numeric-underscore-normalization = true
+
+[tool.pylint.messages_control]
+disable = """
+missing-docstring,bad-continuation,fixme
+"""
+
+[tool.pylint.reports]
+output-format = "colorized"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

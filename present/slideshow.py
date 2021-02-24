@@ -14,11 +14,6 @@ from effects import (
     _code,
     _codio,
     _image,
-    _fireworks,
-    _explosions,
-    _stars,
-    _matrix,
-    _plasma,
     Codio,
 )
 
@@ -32,47 +27,49 @@ class Slide(Scene):
 
     def _reset(self):
         for effect in self._effects:
-            if isinstance(effect, Print) and isinstance(effect._renderer, Codio):
+            if isinstance(effect, Print) and isinstance(
+                effect._renderer, Codio
+            ):
                 effect._renderer._reset()
 
     def process_event(self, event):
         if super(Slide, self).process_event(event) is None:
             return
 
-        if isinstance(event, KeyboardEvent):
-            c = event.key_code
-            if c == ord("r"):
-                self._reset()
-            elif c in (ord("b"), Screen.KEY_LEFT, Screen.KEY_PAGE_UP):
-                self.show.current_slide -= 1
+        if not isinstance(event, KeyboardEvent):
+            return event
 
-                try:
-                    self.show.screen.set_scenes(
-                        [self.show.slides[self.show.current_slide]]
-                    )
-                    self.show.screen.clear_buffer(
-                        self.show.slides[self.show.current_slide].fg_color,
-                        0,
-                        self.show.slides[self.show.current_slide].bg_color,
-                    )
-                except IndexError:
-                    pass
-            elif c in (ord(" "), ord("n"), Screen.KEY_RIGHT, Screen.KEY_PAGE_DOWN):
-                self.show.current_slide += 1
+        c = event.key_code
+        if c == ord("r"):
+            self._reset()
+        elif c in (ord("b"), Screen.KEY_LEFT, Screen.KEY_PAGE_UP):
+            self.show.current_slide -= 1
 
-                try:
-                    self.show.screen.set_scenes(
-                        [self.show.slides[self.show.current_slide]]
-                    )
-                    self.show.screen.clear_buffer(
-                        self.show.slides[self.show.current_slide].fg_color,
-                        0,
-                        self.show.slides[self.show.current_slide].bg_color,
-                    )
-                except IndexError:
-                    pass
-            else:
-                return event
+            try:
+                self.show.screen.set_scenes(
+                    [self.show.slides[self.show.current_slide]]
+                )
+                self.show.screen.clear_buffer(
+                    self.show.slides[self.show.current_slide].fg_color,
+                    0,
+                    self.show.slides[self.show.current_slide].bg_color,
+                )
+            except IndexError:
+                pass
+        elif c in (ord(" "), ord("n"), Screen.KEY_RIGHT, Screen.KEY_PAGE_DOWN):
+            self.show.current_slide += 1
+
+            try:
+                self.show.screen.set_scenes(
+                    [self.show.slides[self.show.current_slide]]
+                )
+                self.show.screen.clear_buffer(
+                    self.show.slides[self.show.current_slide].fg_color,
+                    0,
+                    self.show.slides[self.show.current_slide].bg_color,
+                )
+            except IndexError:
+                pass
         else:
             return event
 
@@ -143,15 +140,21 @@ class Slideshow(object):
         self.reset = [Slide(self, _reset(self.screen), 7, 0)]
 
         self.slides = [
-            Slide(self, self.get_effects(slide), slide.fg_color, slide.bg_color)
+            Slide(
+                self, self.get_effects(slide), slide.fg_color, slide.bg_color
+            )
             for slide in self.slides
         ]
 
         # Initialise the Screen for animation.
         self.screen.set_scenes(
-            self.slides, unhandled_input=unhandled_input, start_scene=start_scene
+            self.slides,
+            unhandled_input=unhandled_input,
+            start_scene=start_scene,
         )
-        self.screen.clear_buffer(self.slides[0].fg_color, 0, self.slides[0].bg_color)
+        self.screen.clear_buffer(
+            self.slides[0].fg_color, 0, self.slides[0].bg_color
+        )
 
         # Mainline loop for animations
         try:
@@ -164,7 +167,8 @@ class Slideshow(object):
                         self.screen.draw_next_frame(repeat=repeat)
                         b = time.time()
                         if b - a < 0.05:
-                            # Just in case time has jumped (e.g. time change), ensure we only delay for 0.05s
+                            # Just in case time has jumped (e.g. time change)
+                            # ensure we only delay for 0.05s
                             pause = min(0.05, a + 0.05 - b)
                             if allow_int:
                                 self.screen.wait_for_input(pause)
@@ -173,32 +177,31 @@ class Slideshow(object):
 
                         event = self.screen.get_event()
                         if isinstance(event, KeyboardEvent):
-                            if event.key_code == ord("r"):
-                                self.current_slide = 0
-                                self.screen.set_scenes(
-                                    [self.slides[self.current_slide]]
-                                )
-                                self.screen.clear_buffer(
-                                    self.slides[self.current_slide].fg_color,
-                                    0,
-                                    self.slides[self.current_slide].bg_color,
-                                )
-                                break
-                            else:
+                            if event.key_code != ord("r"):
                                 raise StopApplication("Stop slideshow")
 
+                            self.current_slide = 0
+                            self.screen.set_scenes(
+                                [self.slides[self.current_slide]]
+                            )
+                            self.screen.clear_buffer(
+                                self.slides[self.current_slide].fg_color,
+                                0,
+                                self.slides[self.current_slide].bg_color,
+                            )
+                            break
                 a = time.time()
                 self.screen.draw_next_frame(repeat=repeat)
-                if self.screen.has_resized():
-                    if stop_on_resize:
-                        self.screen._scenes[self.screen._scene_index].exit()
-                        raise ResizeScreenError(
-                            "Screen resized",
-                            self.screen._scenes[self.screen._scene_index],
-                        )
+                if self.screen.has_resized() and stop_on_resize:
+                    self.screen._scenes[self.screen._scene_index].exit()
+                    raise ResizeScreenError(
+                        "Screen resized",
+                        self.screen._scenes[self.screen._scene_index],
+                    )
                 b = time.time()
                 if b - a < 0.05:
-                    # Just in case time has jumped (e.g. time change), ensure we only delay for 0.05s
+                    # Just in case time has jumped (e.g. time change)
+                    # ensure we only delay for 0.05s
                     pause = min(0.05, a + 0.05 - b)
                     if allow_int:
                         self.screen.wait_for_input(pause)
