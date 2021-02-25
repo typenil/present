@@ -8,7 +8,7 @@ from functools import cached_property
 from pyfiglet import Figlet
 from loguru import logger
 
-from effects import COLORS, EFFECTS
+from .effects import COLORS, EFFECTS
 
 
 @dataclass

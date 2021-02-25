@@ -2,8 +2,8 @@
 
 import click
 
-from markdown import Markdown
-from slideshow import Slideshow
+from .markdown import Markdown
+from .slideshow import Slideshow
 
 
 @click.command()

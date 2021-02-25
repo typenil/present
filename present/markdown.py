@@ -6,7 +6,7 @@ import warnings
 import yaml
 from mistune import markdown
 
-from slide import (
+from .slide import (
     Slide,
     Paragraph,
     Image,
@@ -25,6 +25,7 @@ class Markdown(object):
         with open(self.filename, "r") as f:
             text = f.read()
 
+        breakpoint()
         slides = []
         ast = markdown(text, renderer="ast")
 

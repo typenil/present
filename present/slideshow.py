@@ -8,7 +8,7 @@ from asciimatics.effects import Print
 from asciimatics.event import KeyboardEvent
 from asciimatics.exceptions import ResizeScreenError, StopApplication
 
-from effects import (
+from .effects import (
     _reset,
     _base,
     _code,

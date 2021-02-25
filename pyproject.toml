@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "present.py"
-version = "0.6.0"
+name = "present"
+version = "0.6.3"
 description = "A terminal-based presentation tool with colors and effects."
 license = "Apache-2.0"
 authors = ["Vinayak Mehta <vmehta94@gmail.com>"]
@@ -16,6 +16,9 @@ classifiers = [
 	"Programming Language :: Python :: 3.9",
 	"Programming Language :: Python :: 3 :: Only",
 ]
+
+[tool.poetry.scripts]
+present = 'present.cli:cli'
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -33,6 +36,7 @@ mypy = "^0.812"
 flake8 = "^3.8.4"
 pylint = "^2.7.1"
 bandit = "^1.7.0"
+ipdb = "^0.13.4"
 
 [tool.black]
 line-length = 79
