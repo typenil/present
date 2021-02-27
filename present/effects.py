@@ -14,6 +14,8 @@ from asciimatics.renderers import (
     DynamicRenderer,
 )
 
+from .utils import normalize_name
+
 
 ATTRS = {
     "bold": Screen.A_BOLD,
@@ -115,7 +117,7 @@ class Codio(DynamicRenderer):
         return self._plain_image, self._colour_map
 
 
-def _reset(screen):
+def reset(screen):
     reset = Print(
         screen,
         SpeechBubble("Press 'r' to restart."),
@@ -125,7 +127,7 @@ def _reset(screen):
     return [reset]
 
 
-def _base(screen, element, row, fg_color, bg_color, attr=0):
+def base(screen, element, row, fg_color, bg_color, attr=0):
     # for heading, text, list, blockhtml
     if element.type == "heading" and element.obj["level"] == 3:
         attr = ATTRS["bold"]
@@ -143,7 +145,7 @@ def _base(screen, element, row, fg_color, bg_color, attr=0):
     return [base]
 
 
-def _code(screen, element, row):
+def code(screen, element, row):
     code = Print(
         screen,
         Text(element.render()),
@@ -156,7 +158,7 @@ def _code(screen, element, row):
     return [code]
 
 
-def _codio(screen, element, row):
+def codio(screen, element, row):
     codio = Print(
         screen,
         Codio(code=element.render(), width=element.width, height=element.size),
@@ -170,7 +172,7 @@ def _codio(screen, element, row):
     return [codio]
 
 
-def _image(screen, element, row, bg_color):
+def image(screen, element, row, bg_color):
     image = Print(
         screen,
         ColourImageFile(
@@ -188,7 +190,7 @@ def _image(screen, element, row, bg_color):
     return [image]
 
 
-def _fireworks(screen):
+def fireworks(screen):
     effects = []
     x_regions = [
         (0, screen.width),
@@ -216,7 +218,7 @@ def _fireworks(screen):
     return effects
 
 
-def _explosions(screen):
+def explosions(screen):
     effects = []
     x_regions = [
         (0, screen.width),
@@ -243,15 +245,15 @@ def _explosions(screen):
     return effects
 
 
-def _stars(screen):
+def stars(screen):
     return [Stars(screen, (screen.width + screen.height) // 2, stop_frame=100)]
 
 
-def _matrix(screen):
+def matrix(screen):
     return [Matrix(screen, stop_frame=200)]
 
 
-def _plasma(screen):
+def plasma(screen):
     return [
         Print(
             screen,
@@ -261,3 +263,25 @@ def _plasma(screen):
             transparent=False,
         )
     ]
+
+
+class EffectFactory:
+    EFFECTS = {
+        normalize_name(klass.__name__): klass
+        for klass in [
+            reset,
+            base,
+            code,
+            codio,
+            image,
+            fireworks,
+            explosions,
+            stars,
+            matrix,
+            plasma,
+        ]
+    }
+
+    @classmethod
+    def create(cls, name: str, effect):
+        return cls.EFFECTS[normalize_name(name)](effect)

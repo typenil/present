@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import string
 from dataclasses import dataclass, field
 from typing import List
 from functools import cached_property
@@ -8,6 +9,7 @@ from functools import cached_property
 from pyfiglet import Figlet
 from loguru import logger
 
+from .utils import normalize_name
 from .effects import COLORS, EFFECTS
 
 
@@ -313,9 +315,9 @@ class Paragraph(Renderable):
         text = ""
 
         for child in self.obj["children"]:
-            element_name = child["type"].title().replace("_", "")
-            Element = eval(element_name)
-            e = Element(obj=child, fg=self.fg, bg=self.bg)
+            e = RenderableFactory.create(
+                child["type"], obj=child, fg=self.fg, bg=self.bg
+            )
             text += e.render()
 
         return text
@@ -340,9 +342,35 @@ class BlockQuote(Renderable):
         return "\n".join(text)
 
 
+class RenderableFactory:
+    RENDER_CLASSES = {
+        normalize_name(klass.__name__): klass
+        for klass in [
+            Heading,
+            List,
+            BlockCode,
+            Codio,
+            Image,
+            BlockHtml,
+            Text,
+            Codespan,
+            Strong,
+            Emphasis,
+            Link,
+            Paragraph,
+            BlockQuote,
+        ]
+    }
+
+    @classmethod
+    def create(cls, name: str, obj: dict) -> Renderable:
+        return cls.RENDER_CLASSES[normalize_name(name)](obj=obj)
+
+
 class Slide:
     def __init__(self, elements=None):
-        self.elements = elements
+        self._elements = []
+        self._style = {}
         self.has_style = False
         self.has_effect = False
         self.has_image = False
@@ -351,6 +379,7 @@ class Slide:
         self.effect = None
         self.fg_color = 0
         self.bg_color = 7
+        self.elements = elements
 
     @property
     def style(self):
@@ -399,6 +428,7 @@ class Slide:
 
     @elements.setter
     def elements(self, elements):
+        renderable = []
         for e in elements:
             # TODO: raise warning if multiple styles
             if e.type == "code":
@@ -416,6 +446,7 @@ class Slide:
 
             elif e.type == "image":
                 self.has_image = True
+            renderable.append(e)
 
         if self.has_effect:
             # apply fg and bg color to all elements
@@ -423,7 +454,7 @@ class Slide:
                 e.fg = self.fg_color
                 e.bg = self.bg_color
 
-        self._elements = elements
+        self._elements = renderable
 
     def __repr__(self):
         return (

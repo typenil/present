@@ -1,17 +1,25 @@
 # -*- coding: utf-8 -*-
 
 import os
-import warnings
 
 import yaml
-from mistune import markdown
+import mistune
+from loguru import logger
 
-from .slide import (
-    Slide,
-    Paragraph,
-    Image,
-    Codio,
-)
+# from pygments import highlight
+# from pygments.lexers import get_lexer_by_name
+# from pygments.formatters import html
+
+from .slide import Slide, Paragraph, Image, Codio, RenderableFactory
+
+
+# class HighlightRenderer(mistune.HTMLRenderer):
+#     def block_code(self, code, lang=None):
+#         if lang:
+#             lexer = get_lexer_by_name(lang, stripall=True)
+#             formatter = html.HtmlFormatter()
+#             return highlight(code, lexer, formatter)
+#         return "<pre><code>" + mistune.escape(code) + "</code></pre>"
 
 
 class Markdown(object):
@@ -25,56 +33,53 @@ class Markdown(object):
         with open(self.filename, "r") as f:
             text = f.read()
 
-        breakpoint()
         slides = []
-        ast = markdown(text, renderer="ast")
+        ast = mistune.markdown(text, renderer="ast")
 
         sliden = 0
-        buffer = []
+        bufr = []
+
+        def dump_slide():
+            nonlocal bufr, slides, sliden
+            if not bufr:
+                return
+
+            slides.append(Slide(elements=bufr))
+            sliden += 1
+            bufr = []
+
         for i, obj in enumerate(ast):
             if obj["type"] in ["newline"]:
                 continue
 
-            if obj["type"] == "thematic_break" and buffer:
-                slides.append(Slide(elements=buffer))
-                sliden += 1
-                buffer = []
+            if obj["type"] == "thematic_break":
+                dump_slide()
                 continue
 
-            try:
-                if obj["type"] == "paragraph":
-                    images = [
-                        c for c in obj["children"] if c["type"] == "image"
-                    ]
-                    not_images = [
-                        c for c in obj["children"] if c["type"] != "image"
-                    ]
+            if obj["type"] == "paragraph":
+                images = [c for c in obj["children"] if c["type"] == "image"]
+                not_images = [
+                    c for c in obj["children"] if c["type"] != "image"
+                ]
 
-                    for image in images:
-                        image["src"] = os.path.join(
-                            self.dirname, os.path.expanduser(image["src"])
-                        )
+                for image in images:
+                    image["src"] = os.path.join(
+                        self.dirname, os.path.expanduser(image["src"])
+                    )
 
-                        if image["alt"] == "codio":
-                            with open(image["src"], "r") as f:
-                                codio = yaml.load(f, Loader=yaml.Loader)
-                            buffer.append(Codio(obj=codio))
-                        else:
-                            buffer.append(Image(obj=image))
+                    if image["alt"] == "codio":
+                        with open(image["src"], "r") as f:
+                            codio = yaml.safe_load(f)
+                        bufr.append(Codio(obj=codio))
+                    else:
+                        bufr.append(Image(obj=image))
 
-                    obj["children"] = not_images
-                    buffer.append(Paragraph(obj=obj))
-                else:
-                    element_name = obj["type"].title().replace("_", "")
-                    Element = eval(element_name)
-                    buffer.append(Element(obj=obj))
-            except NameError:
-                warnings.warn(
-                    f"(Slide {sliden + 1}) {element_name} is not supported"
-                )
+                obj["children"] = not_images
+                bufr.append(Paragraph(obj=obj))
+            else:
+                instance = RenderableFactory.create(obj["type"], obj)
+                bufr.append(instance)
 
-            if i == len(ast) - 1:
-                slides.append(Slide(elements=buffer))
-                sliden += 1
+        dump_slide()
 
         return slides

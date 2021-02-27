@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import time
 
 from asciimatics.scene import Scene
@@ -8,14 +6,7 @@ from asciimatics.effects import Print
 from asciimatics.event import KeyboardEvent
 from asciimatics.exceptions import ResizeScreenError, StopApplication
 
-from .effects import (
-    _reset,
-    _base,
-    _code,
-    _codio,
-    _image,
-    Codio,
-)
+from .effects import reset, base, code, codio, image, Codio, EffectFactory
 
 
 class Slide(Scene):
@@ -109,23 +100,23 @@ class Slideshow(object):
         pad = 2
         for e in elements:
             if e.type == "code":
-                effects.extend(_code(self.screen, e, row))
+                effects.extend(code(self.screen, e, row))
                 pad = 4
             elif e.type == "codio":
-                effects.extend(_codio(self.screen, e, row))
+                effects.extend(codio(self.screen, e, row))
                 pad = 4
             elif e.type == "image":
-                effects.extend(_image(self.screen, e, row, bg_color))
+                effects.extend(image(self.screen, e, row, bg_color))
                 pad = 2
             else:
-                effects.extend(_base(self.screen, e, row, fg_color, bg_color))
+                effects.extend(base(self.screen, e, row, fg_color, bg_color))
                 pad = 2
 
             row += e.size + pad
 
         if slide.has_style and slide.effect is not None:
-            _effect = eval(f"_{slide.effect}")(self.screen)
-            effects.extend(list(_effect))
+            effect = EffectFactory.create(slide.effect, self.screen)
+            effects.extend(list(effect))
 
         return effects
 
@@ -137,14 +128,16 @@ class Slideshow(object):
         repeat=True,
         allow_int=False,
     ):
-        self.reset = [Slide(self, _reset(self.screen), 7, 0)]
+        self.reset = [Slide(self, reset(self.screen), 7, 0)]
 
-        self.slides = [
-            Slide(
-                self, self.get_effects(slide), slide.fg_color, slide.bg_color
-            )
-            for slide in self.slides
-        ]
+        slides = []
+        for slide in self.slides:
+            effects = self.get_effects(slide)
+            if effects:
+                slides.append(
+                    Slide(self, effects, slide.fg_color, slide.bg_color)
+                )
+        self.slides = slides
 
         # Initialise the Screen for animation.
         self.screen.set_scenes(
