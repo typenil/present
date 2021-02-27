@@ -4,7 +4,6 @@ import os
 
 import yaml
 import mistune
-from loguru import logger
 
 # from pygments import highlight
 # from pygments.lexers import get_lexer_by_name

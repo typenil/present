@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
-
 from random import randint, choice
+from typing import Callable, List, Dict
 
 from asciimatics.effects import Print
 from asciimatics.screen import Screen
 from asciimatics.effects import Stars, Matrix
 from asciimatics.particles import Explosion, StarFirework
 from asciimatics.renderers import (
+    Renderer,
     Plasma,
     SpeechBubble,
     StaticRenderer,
@@ -117,7 +117,7 @@ class Codio(DynamicRenderer):
         return self._plain_image, self._colour_map
 
 
-def reset(screen):
+def reset(screen: Screen) -> List[Print]:
     reset = Print(
         screen,
         SpeechBubble("Press 'r' to restart."),
@@ -127,7 +127,9 @@ def reset(screen):
     return [reset]
 
 
-def base(screen, element, row, fg_color, bg_color, attr=0):
+def base(
+    screen: Screen, element, row, fg_color, bg_color, attr=0
+) -> List[Print]:
     # for heading, text, list, blockhtml
     if element.type == "heading" and element.obj["level"] == 3:
         attr = ATTRS["bold"]
@@ -145,7 +147,7 @@ def base(screen, element, row, fg_color, bg_color, attr=0):
     return [base]
 
 
-def code(screen, element, row):
+def code(screen: Screen, element, row) -> List[Print]:
     code = Print(
         screen,
         Text(element.render()),
@@ -158,7 +160,7 @@ def code(screen, element, row):
     return [code]
 
 
-def codio(screen, element, row):
+def codio(screen: Screen, element, row) -> List[Codio]:
     codio = Print(
         screen,
         Codio(code=element.render(), width=element.width, height=element.size),
@@ -172,7 +174,7 @@ def codio(screen, element, row):
     return [codio]
 
 
-def image(screen, element, row, bg_color):
+def image(screen: Screen, element, row, bg_color) -> List[Print]:
     image = Print(
         screen,
         ColourImageFile(
@@ -190,8 +192,8 @@ def image(screen, element, row, bg_color):
     return [image]
 
 
-def fireworks(screen):
-    effects = []
+def fireworks(screen: Screen) -> List[StarFirework]:
+    effects: List[Effect] = []
     x_regions = [
         (0, screen.width),
         (0, screen.width // 3),
@@ -218,7 +220,7 @@ def fireworks(screen):
     return effects
 
 
-def explosions(screen):
+def explosions(screen: Screen) -> List[Explosion]:
     effects = []
     x_regions = [
         (0, screen.width),
@@ -245,15 +247,15 @@ def explosions(screen):
     return effects
 
 
-def stars(screen):
+def stars(screen: Screen) -> List[Stars]:
     return [Stars(screen, (screen.width + screen.height) // 2, stop_frame=100)]
 
 
-def matrix(screen):
+def matrix(screen: Screen) -> List[Matrix]:
     return [Matrix(screen, stop_frame=200)]
 
 
-def plasma(screen):
+def plasma(screen: Screen) -> List[Print]:
     return [
         Print(
             screen,
@@ -265,15 +267,13 @@ def plasma(screen):
     ]
 
 
+Effect = Callable[[Screen], List[Renderer]]
+
+
 class EffectFactory:
-    EFFECTS = {
+    EFFECTS: Dict[str, Effect] = {
         normalize_name(klass.__name__): klass
         for klass in [
-            reset,
-            base,
-            code,
-            codio,
-            image,
             fireworks,
             explosions,
             stars,
@@ -283,5 +283,5 @@ class EffectFactory:
     }
 
     @classmethod
-    def create(cls, name: str, effect):
+    def create(cls, name: str, effect: Effect) -> List[Renderer]:
         return cls.EFFECTS[normalize_name(name)](effect)

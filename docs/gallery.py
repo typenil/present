@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from docutils.nodes import Body, Element, SkipNode
 from docutils.parsers.rst import Directive, directives
 
@@ -35,7 +33,11 @@ def gallery_image_html(self, node):
     template = f"""
     <div class="gallery">
       <a href="{stub}/index.html">
-        <img src="https://present.readthedocs.io/en/latest/{src}" width="600" height="400">
+        <img
+            src="https://present.readthedocs.io/en/latest/{src}"
+            width="600"
+            height="400"
+        >
         <div class="desc">{description}</div>
       </a>
     </div>

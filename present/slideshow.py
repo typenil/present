@@ -83,7 +83,6 @@ class Slideshow(object):
 
     def get_effects(self, slide):
         effects = []
-        transparent = True
         elements = slide.elements
         fg_color, bg_color = slide.fg_color, slide.bg_color
 

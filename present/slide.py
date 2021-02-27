@@ -1,10 +1,7 @@
 import os
 import re
 import shutil
-import string
 from dataclasses import dataclass, field
-from typing import List
-from functools import cached_property
 
 from pyfiglet import Figlet
 from loguru import logger
@@ -109,20 +106,20 @@ class Codio(Renderable):
 
     @property
     def speed(self):
-        _speed = self.obj["speed"]
+        speed = self.obj["speed"]
 
-        if _speed < 1:
+        if speed < 1:
             logger.warn("Codio speed < 1, setting it to 1")
-            _speed = 1
-        elif _speed > 10:
+            speed = 1
+        elif speed > 10:
             logger.warn("Codio speed > 10, setting it to 10")
-            _speed = 10
+            speed = 10
 
-        return 11 - _speed
+        return 11 - speed
 
     @property
     def width(self):
-        _width = 0
+        width = 0
         _terminal_width = int(shutil.get_terminal_size()[0] / 4)
 
         for line in self.obj["lines"]:
@@ -131,19 +128,19 @@ class Codio(Renderable):
             out = line.get("out", "")
 
             if line.get("progress") is not None and line["progress"]:
-                _magic_width = _terminal_width
+                magic_width = _terminal_width
             else:
-                _magic_width = 0
+                magic_width = 0
 
-            _width = max(
-                _width,
-                _magic_width,
+            width = max(
+                width,
+                magic_width,
                 len(prompt),
                 len(inp) + inp.count(" "),
                 len(out) + out.count(" "),
             )
 
-        return _width + 4
+        return width + 4
 
     @property
     def size(self):
@@ -158,22 +155,22 @@ class Codio(Renderable):
         return lines + 2
 
     def render(self):
-        _code = []
-        _width = self.width
+        code = []
+        width = self.width
 
-        for line in self.obj["lines"]:
-            _c = {}
+        for yaml_line in self.obj["lines"]:
+            render_line = {}
 
             # if there is a progress bar, don't display prompt or add style
-            if line.get("progress") is not None and line["progress"]:
-                progress_char = line.get("progressChar", "█")
-                _c["prompt"] = ""
-                _c["in"] = progress_char * int(0.6 * _width)
-                _c["out"] = ""
+            if yaml_line.get("progress") is not None and yaml_line["progress"]:
+                progress_char = yaml_line.get("progressChar", "█")
+                render_line["prompt"] = ""
+                render_line["in"] = progress_char * int(0.6 * width)
+                render_line["out"] = ""
             else:
-                prompt = line.get("prompt", "")
-                inp = line.get("in", "")
-                out = line.get("out", "")
+                prompt = yaml_line.get("prompt", "")
+                inp = yaml_line.get("in", "")
+                out = yaml_line.get("out", "")
 
                 if not (prompt or inp or out):
                     continue
@@ -183,17 +180,17 @@ class Codio(Renderable):
                     out = prompt
                     prompt = ""
 
-                _c["prompt"] = prompt
-                _c["in"] = inp
-                _c["out"] = out
+                render_line["prompt"] = prompt
+                render_line["in"] = inp
+                render_line["out"] = out
 
-                _c["color"] = line.get("color")
-                _c["bold"] = line.get("bold")
-                _c["underline"] = line.get("underline")
+                render_line["color"] = yaml_line.get("color")
+                render_line["bold"] = yaml_line.get("bold")
+                render_line["underline"] = yaml_line.get("underline")
 
-            _code.append(_c)
+            code.append(render_line)
 
-        return _code
+        return code
 
 
 @dataclass(init=False)
@@ -396,17 +393,16 @@ class Slide:
             self.effect = style["effect"]
             self.fg_color, self.bg_color = 7, 0
 
-        if style.get("fg") is not None:
-            try:
-                self.fg_color = COLORS[style["fg"]]
-            except KeyError:
-                raise ValueError(f"Color {style['fg']} is not supported")
-
-        if style.get("bg") is not None:
-            try:
-                self.bg_color = COLORS[style["bg"]]
-            except KeyError:
-                raise ValueError(f"Color {style['bg']} is not supported")
+        for color_key in ("fg", "bg"):
+            if style.get(color_key) is not None:
+                try:
+                    setattr(
+                        self, f"{color_key}_color", COLORS[style[color_key]]
+                    )
+                except KeyError:
+                    raise ValueError(
+                        f"Color {style[color_key]} is not supported"
+                    )
 
         if self.has_effect and (
             style.get("fg") is not None or style.get("bg") is not None
