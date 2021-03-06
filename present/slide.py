@@ -1,8 +1,12 @@
 import os
 import re
 import shutil
+from typing import Optional
 from dataclasses import dataclass, field
 
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import terminal
 from pyfiglet import Figlet
 from loguru import logger
 
@@ -96,8 +100,20 @@ class BlockCode(Renderable):
     def size(self):
         return len(self.obj["text"].splitlines())
 
+    @staticmethod
+    def _highlight_code(code: str, language: Optional[str]) -> str:
+        if not language:
+            return code
+
+        lexer = get_lexer_by_name(language, stripall=True)
+        formatter = terminal.TerminalFormatter()
+        return highlight(code, lexer, formatter)
+
     def render(self):
-        return self.pad(self.obj["text"])
+        language = self.obj.get("info")
+        code = self.obj["text"]
+        highlighted = self._highlight_code(code, language)
+        return self.pad(highlighted)
 
 
 @dataclass
