@@ -126,6 +126,19 @@ os.getcwd()
 ```
 </pre>
 
+#### Syntax highlighting
+This project uses [Pygments](https://pygments.org/) for code highlighting. If you want to apply highlighting to a code block, include the language name, e.g.
+
+<pre>
+```python
+import os
+
+os.getcwd()
+```
+</pre>
+
+
+
 ### Codios
 
 Codios are pre-recorded playable code blocks which can be useful for live demos. You can find out how to write one in the [codio](https://present.readthedocs.io/en/latest/codio.html) section of the documentation.
