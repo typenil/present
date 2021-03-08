@@ -42,6 +42,48 @@ class Text(StaticRenderer):
         self._images = [text]
 
 
+class SourceFile(DynamicRenderer):
+    def __init__(self, source=None, height=100, width=100):
+        super().__init__(height, width)
+        self._source = source
+        self._height = height
+        self._width = width
+        self._state = None
+        self._reset()
+
+    def _render_now(self):
+        x = y = 1
+
+        for i, c in enumerate(self._code):
+            kwargs = {}
+
+            if self._code[i].get("color") is not None:
+                kwargs.update({"colour": COLORS[self._code[i]["color"]]})
+
+            if self._code[i].get("bold") is not None and self._code[i]["bold"]:
+                kwargs.update({"attr": ATTRS["bold"]})
+
+            if (
+                self._code[i].get("underline") is not None
+                and self._code[i]["underline"]
+            ):
+                kwargs.update({"attr": ATTRS["underline"]})
+
+            inp, out = self._get_code(i)
+            if inp is not None:
+                prompt = self._code[i]["prompt"]
+                if prompt:
+                    self._write(f"{prompt} {inp}", x, y, **kwargs)
+                else:
+                    self._write(f"{inp}", x, y, **kwargs)
+                y += 1
+            if out is not None and out:
+                self._write(out, x, y, **kwargs)
+                y += 1
+
+        return self._plain_image, self._colour_map
+
+
 class Codio(DynamicRenderer):
     def __init__(self, code=None, height=100, width=100):
         super(Codio, self).__init__(height, width)
@@ -127,71 +169,6 @@ def reset(screen: Screen) -> List[Print]:
     return [reset]
 
 
-def base(
-    screen: Screen, element, row, fg_color, bg_color, attr=0
-) -> List[Print]:
-    # for heading, text, list, blockhtml
-    if element.type == "heading" and element.obj["level"] == 3:
-        attr = ATTRS["bold"]
-
-    base = Print(
-        screen,
-        Text(element.render()),
-        row,
-        colour=fg_color,
-        bg=bg_color,
-        attr=attr,
-        transparent=False,
-    )
-
-    return [base]
-
-
-def code(screen: Screen, element, row) -> List[Print]:
-    code = Print(
-        screen,
-        Text(element.render()),
-        row,
-        colour=Screen.COLOUR_WHITE,
-        bg=Screen.COLOUR_BLACK,
-        transparent=False,
-    )
-
-    return [code]
-
-
-def codio(screen: Screen, element, row) -> List[Codio]:
-    codio = Print(
-        screen,
-        Codio(code=element.render(), width=element.width, height=element.size),
-        row,
-        colour=Screen.COLOUR_WHITE,
-        bg=Screen.COLOUR_BLACK,
-        transparent=False,
-        speed=element.speed,
-    )
-
-    return [codio]
-
-
-def image(screen: Screen, element, row, bg_color) -> List[Print]:
-    image = Print(
-        screen,
-        ColourImageFile(
-            screen,
-            element.obj["src"],
-            element.size,
-            bg=bg_color,
-            fill_background=True,
-            uni=screen.unicode_aware,
-            dither=screen.unicode_aware,
-        ),
-        row,
-    )
-
-    return [image]
-
-
 def fireworks(screen: Screen) -> List[StarFirework]:
     effects: List[Effect] = []
     x_regions = [
@@ -267,6 +244,10 @@ def plasma(screen: Screen) -> List[Print]:
     ]
 
 
+def countdown(screen: Screen) -> List[Print]:
+    pass
+
+
 Effect = Callable[[Screen], List[Renderer]]
 
 
@@ -279,6 +260,7 @@ class EffectFactory:
             stars,
             matrix,
             plasma,
+            countdown,
         ]
     }
 

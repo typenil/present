@@ -1,9 +1,13 @@
 import os
 import re
 import shutil
-from typing import Optional
+from typing import Optional, List as List_Type
 from dataclasses import dataclass, field
+from functools import cached_property
 
+from asciimatics.effects import Print
+from asciimatics.screen import Screen
+from asciimatics import renderers
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import terminal
@@ -11,7 +15,16 @@ from pyfiglet import Figlet
 from loguru import logger
 
 from .utils import normalize_name
-from .effects import COLORS, EFFECTS
+from .effects import (
+    COLORS,
+    EFFECTS,
+    SourceFile as SourceFileRenderer,
+    Codio as CodioRenderer,
+    Text as TestRenderer,
+)
+
+
+PrintList = List_Type[Print]
 
 
 @dataclass
@@ -24,6 +37,31 @@ class Renderable:
 
     @property
     def type(self) -> str:
+        raise NotImplementedError()
+
+    def _print_element(self, screen: Screen):
+        return TestRenderer(self.render())
+
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        base = Print(
+            screen,
+            self._print_element(screen),
+            row,
+            colour=fg_color,
+            bg=bg_color,
+            attr=attr,
+            transparent=False,
+        )
+        return [base]
+
+    def render(self):
         raise NotImplementedError()
 
 
@@ -52,6 +90,20 @@ class Heading(Renderable):
             return "\n".join([text, "-" * len(text)])
         else:
             return text
+
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        if self.obj["level"] == 3:
+            attr = Screen.A_BOLD
+        return super().as_print_list(
+            screen, row, fg_color=fg_color, bg_color=bg_color, attr=attr
+        )
 
 
 @dataclass
@@ -115,10 +167,23 @@ class BlockCode(Renderable):
         highlighted = self._highlight_code(code, language)
         return self.pad(highlighted)
 
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        return super().as_print_list(
+            screen, row, Screen.COLOUR_WHITE, Screen.COLOUR_BLACK
+        )
+
 
 @dataclass
 class Codio(Renderable):
     type: str = "codio"
+    dirname: Optional[str] = None
 
     @property
     def speed(self):
@@ -208,6 +273,58 @@ class Codio(Renderable):
 
         return code
 
+    def _print_element(self, screen: Screen):
+        return CodioRenderer(
+            code=self.render(), width=self.width, height=self.size
+        )
+
+
+@dataclass
+class SourceFile(Codio):
+    type: str = "source_file"
+
+    def __post_init__(self):
+        src_path = (
+            os.path.join(
+                self.dirname,
+                os.path.expanduser(self.obj["file"]),
+            )
+            if self.dirname
+            else self.obj["file"]
+        )
+
+        with open(src_path, "r") as infile:
+            self.obj["lines"] = infile.readlines()
+
+    @cached_property
+    def width(self):
+        width = 0
+
+        for line in self.obj["lines"]:
+            # TODO: Assuming line is a string
+
+            width = max(
+                width,
+                len(line),
+            )
+
+        return width + 4
+
+    @cached_property
+    def size(self):
+        lines = len(self.obj["lines"]) + sum(
+            1 for line in self.obj["lines"] if line
+        )
+        return lines + 2
+
+    def render(self):
+        return self.obj["lines"]
+
+    def _print_element(self, screen: Screen):
+        return SourceFileRenderer(
+            source=self.render(), width=self.width, height=self.size
+        )
+
 
 @dataclass(init=False)
 class Image(Renderable):
@@ -225,6 +342,16 @@ class Image(Renderable):
 
     def render(self):
         raise NotImplementedError
+
+    def _print_element(self, screen: Screen):
+        return ColourImageFile(
+            screen,
+            self.obj["src"],
+            self.size,
+            fill_background=True,
+            uni=screen.unicode_aware,
+            dither=screen.unicode_aware,
+        )
 
 
 @dataclass
