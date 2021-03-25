@@ -62,12 +62,12 @@ class Markdown(object):
                         with open(image["src"], "r") as f:
                             codio = yaml.safe_load(f)
 
-                        CodeKlass = (
-                            SourceFile
+                        instance = (
+                            SourceFile(obj=codio, dirname=self.dirname)
                             if codio.get("type") == "sourceFile"
-                            else Codio
+                            else Codio(obj=codio)
                         )
-                        bufr.append(CodeKlass(obj=codio, dirname=self.dirname))
+                        bufr.append(instance)
                     else:
                         bufr.append(Image(obj=image))
 

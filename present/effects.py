@@ -1,5 +1,7 @@
 from random import randint, choice
 from typing import Callable, List, Dict
+from pygments import highlight, lex
+from pygments.lexers import get_lexer_by_name
 
 from asciimatics.effects import Print
 from asciimatics.screen import Screen
@@ -49,37 +51,15 @@ class SourceFile(DynamicRenderer):
         self._height = height
         self._width = width
         self._state = None
-        self._reset()
 
     def _render_now(self):
         x = y = 1
 
-        for i, c in enumerate(self._code):
+        for i, c in enumerate(self._source):
             kwargs = {}
 
-            if self._code[i].get("color") is not None:
-                kwargs.update({"colour": COLORS[self._code[i]["color"]]})
-
-            if self._code[i].get("bold") is not None and self._code[i]["bold"]:
-                kwargs.update({"attr": ATTRS["bold"]})
-
-            if (
-                self._code[i].get("underline") is not None
-                and self._code[i]["underline"]
-            ):
-                kwargs.update({"attr": ATTRS["underline"]})
-
-            inp, out = self._get_code(i)
-            if inp is not None:
-                prompt = self._code[i]["prompt"]
-                if prompt:
-                    self._write(f"{prompt} {inp}", x, y, **kwargs)
-                else:
-                    self._write(f"{inp}", x, y, **kwargs)
-                y += 1
-            if out is not None and out:
-                self._write(out, x, y, **kwargs)
-                y += 1
+            self._write(c, x, y, **kwargs)
+            y += 1
 
         return self._plain_image, self._colour_map
 

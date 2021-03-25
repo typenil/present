@@ -1,13 +1,16 @@
 import os
 import re
 import shutil
-from typing import Optional, List as List_Type
+from typing import Optional, List as ListType
 from dataclasses import dataclass, field
 from functools import cached_property
 
 from asciimatics.effects import Print
 from asciimatics.screen import Screen
-from asciimatics import renderers
+from asciimatics.renderers import (
+    ColourImageFile,
+)
+
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import terminal
@@ -24,7 +27,7 @@ from .effects import (
 )
 
 
-PrintList = List_Type[Print]
+PrintList = ListType[Print]
 
 
 @dataclass
@@ -183,7 +186,6 @@ class BlockCode(Renderable):
 @dataclass
 class Codio(Renderable):
     type: str = "codio"
-    dirname: Optional[str] = None
 
     @property
     def speed(self):
@@ -280,8 +282,13 @@ class Codio(Renderable):
 
 
 @dataclass
-class SourceFile(Codio):
+class SourceFile(Renderable):
     type: str = "source_file"
+    dirname: Optional[str] = None
+
+    @cached_property
+    def language(self) -> Optional[str]:
+        return self.obj.get("language", None)
 
     def __post_init__(self):
         src_path = (
@@ -294,15 +301,17 @@ class SourceFile(Codio):
         )
 
         with open(src_path, "r") as infile:
-            self.obj["lines"] = infile.readlines()
+            lines = infile.readlines()
+            self.obj["source"] = "".join(lines)
+            breakpoint()
+            self.width = self.get_width(lines)
+            self.size = self.get_size(lines)
 
-    @cached_property
-    def width(self):
+    @staticmethod
+    def get_width(lines: ListType[str]) -> int:
         width = 0
 
-        for line in self.obj["lines"]:
-            # TODO: Assuming line is a string
-
+        for line in lines:
             width = max(
                 width,
                 len(line),
@@ -310,19 +319,27 @@ class SourceFile(Codio):
 
         return width + 4
 
-    @cached_property
-    def size(self):
-        lines = len(self.obj["lines"]) + sum(
-            1 for line in self.obj["lines"] if line
-        )
-        return lines + 2
+    @staticmethod
+    def get_size(lines: ListType[str]) -> int:
+        return len(lines) + 2
 
     def render(self):
-        return self.obj["lines"]
+        # if self.language:
+        #     lexer = get_lexer_by_name(self.language, stripall=True)
+        #     # TODO either find or write a formatter that we can properly
+        #     # turn into an asciimatics colour map or figure out how to bypass
+        #     # the colour map altogether
+        #     formatter = terminal.TerminalFormatter()
+        #     # formatter = DynamicFormatter()
+        #     hl_lines = highlight("".join(lines), lexer, formatter)
+        #     lines = [f"{line}\n" for line in hl_lines.split("\n")]
+        return self.obj["source"]
 
     def _print_element(self, screen: Screen):
         return SourceFileRenderer(
-            source=self.render(), width=self.width, height=self.size
+            source=self.render(),
+            width=self.width,
+            height=self.size,
         )
 
 
