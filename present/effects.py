@@ -1,3 +1,4 @@
+import json
 from random import randint, choice
 from typing import Callable, List, Dict
 from pygments import highlight, lex
@@ -16,6 +17,7 @@ from asciimatics.renderers import (
     DynamicRenderer,
 )
 
+from .dynamic_formatter import DynamicCharacter
 from .utils import normalize_name
 
 
@@ -47,19 +49,27 @@ class Text(StaticRenderer):
 class SourceFile(DynamicRenderer):
     def __init__(self, source=None, height=100, width=100):
         super().__init__(height, width)
-        self._source = source
+        self._characters = [
+            DynamicCharacter(**char_kwargs)
+            for char_kwargs in json.loads(source)
+        ]
         self._height = height
         self._width = width
         self._state = None
 
     def _render_now(self):
-        x = y = 1
+        x = y = 0
 
-        for i, c in enumerate(self._source):
-            kwargs = {}
+        for char in self._characters:
 
-            self._write(c, x, y, **kwargs)
-            y += 1
+            self._write(
+                char.text, x, y, attr=char.attr, bg=char.bg, colour=char.color
+            )
+            if char.text.endswith("\n"):
+                y += 1
+                x = 0
+            else:
+                x += len(char.text)
 
         return self._plain_image, self._colour_map
 

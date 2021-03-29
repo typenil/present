@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -17,6 +18,11 @@ from pygments.formatters import terminal
 from pyfiglet import Figlet
 from loguru import logger
 
+from .dynamic_formatter import (
+    DynamicFormatter,
+    DynamicCharacter,
+    DataclassEncoder,
+)
 from .utils import normalize_name
 from .effects import (
     COLORS,
@@ -303,7 +309,6 @@ class SourceFile(Renderable):
         with open(src_path, "r") as infile:
             lines = infile.readlines()
             self.obj["source"] = "".join(lines)
-            breakpoint()
             self.width = self.get_width(lines)
             self.size = self.get_size(lines)
 
@@ -324,16 +329,14 @@ class SourceFile(Renderable):
         return len(lines) + 2
 
     def render(self):
-        # if self.language:
-        #     lexer = get_lexer_by_name(self.language, stripall=True)
-        #     # TODO either find or write a formatter that we can properly
-        #     # turn into an asciimatics colour map or figure out how to bypass
-        #     # the colour map altogether
-        #     formatter = terminal.TerminalFormatter()
-        #     # formatter = DynamicFormatter()
-        #     hl_lines = highlight("".join(lines), lexer, formatter)
-        #     lines = [f"{line}\n" for line in hl_lines.split("\n")]
-        return self.obj["source"]
+        if self.language:
+            lexer = get_lexer_by_name(self.language, stripall=True)
+            formatter = DynamicFormatter()
+            return highlight(self.obj["source"], lexer, formatter)
+
+        return json.dumps(
+            [DynamicCharacter(text=self.obj["source"])], cls=DataclassEncoder
+        )
 
     def _print_element(self, screen: Screen):
         return SourceFileRenderer(

@@ -1,73 +1,91 @@
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, asdict, is_dataclass
 
 from asciimatics.screen import Screen
 from pygments.formatter import Formatter
+from pygments.token import (
+    Keyword,
+    Name,
+    Comment,
+    String,
+    Error,
+    Number,
+    Operator,
+    Generic,
+    Token,
+    Whitespace,
+)
+
+
+class DataclassEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if is_dataclass(obj):
+            return asdict(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 @dataclass
 class DynamicCharacter:
     text: str
-    x: int
-    y: int
     color: int = Screen.COLOUR_WHITE
     attr: int = Screen.A_NORMAL
     bg: int = Screen.COLOUR_BLACK
 
     @property
     def args(self) -> tuple:
-        return (self.text, self.x, self.y, self.color, self.attr, self.bg)
+        return (self.text, self.color, self.attr, self.bg)
 
-    
 
 ASCIIMATIC_COLORS = {
-    Token:          Screen.COLOR_DEFAULT, 
-
-    Whitespace:        Screen.COLOUR_BLACK, 
-    Comment:            Screen.COLOUR_BLACK,
-    Comment.Preproc:    Screen.COLOUR_CYAN,
-    Keyword:            Screen.COLOUR_BLUE,
-    Keyword.Type:       Screen.COLOUR_CYAN,
-    Operator.Word:      Screen.COLOUR_MAGENTA,
-    Name.Builtin:       Screen.COLOUR_CYAN,
-    Name.Function:      Screen.COLOUR_GREEN,
-    Name.Namespace:     Screen.COLOUR_CYAN,
-    Name.Class:         Screen.COLOUR_GREEN,
-    Name.Exception:     Screen.COLOUR_CYAN,
-    Name.Decorator:     Screen.COLOUR_BLACK,
-    Name.Variable:      Screen.COLOUR_RED,
-    Name.Constant:      Screen.COLOUR_RED,
-    Name.Attribute:     Screen.COLOUR_CYAN,
-    Name.Tag:           Screen.COLOUR_BLUE,
-    String:             Screen.COLOUR_YELLOW,
-    Number:             Screen.COLOUR_BLUE,
-
-    Generic.Deleted:    Screen.COLOUR_RED,
-    Generic.Inserted:   Screen.COLOUR_GREEN,
-    Generic.Heading:    Screen.COLOUR_DEFAULT,
+    Token: Screen.COLOUR_WHITE,
+    Whitespace: Screen.COLOUR_WHITE,
+    Comment: Screen.COLOUR_WHITE,
+    Comment.Preproc: Screen.COLOUR_CYAN,
+    Keyword: Screen.COLOUR_BLUE,
+    Keyword.Type: Screen.COLOUR_CYAN,
+    Operator.Word: Screen.COLOUR_MAGENTA,
+    Name.Builtin: Screen.COLOUR_CYAN,
+    Name.Function: Screen.COLOUR_GREEN,
+    Name.Namespace: Screen.COLOUR_CYAN,
+    Name.Class: Screen.COLOUR_GREEN,
+    Name.Exception: Screen.COLOUR_CYAN,
+    Name.Decorator: Screen.COLOUR_WHITE,
+    Name.Variable: Screen.COLOUR_RED,
+    Name.Constant: Screen.COLOUR_RED,
+    Name.Attribute: Screen.COLOUR_CYAN,
+    Name.Tag: Screen.COLOUR_BLUE,
+    String: Screen.COLOUR_YELLOW,
+    Number: Screen.COLOUR_BLUE,
+    Generic.Deleted: Screen.COLOUR_RED,
+    Generic.Inserted: Screen.COLOUR_GREEN,
+    Generic.Heading: Screen.COLOUR_WHITE,
     Generic.Subheading: Screen.COLOUR_MAGENTA,
-    Generic.Prompt:     Screen.COLOUR_DEFAULT,
-    Generic.Error:      Screen.COLOUR_RED,
-
-    Error:              Screen.COLOUR_RED,
+    Generic.Prompt: Screen.COLOUR_WHITE,
+    Generic.Error: Screen.COLOUR_RED,
+    Error: Screen.COLOUR_RED,
 }
 
+
 class DynamicFormatter(Formatter):
-    name = 'Dynamic Renderer Formatter'
-    aliases = ['dynamic', 'dynamicrenderer']
+    name = "Dynamic Renderer Formatter"
+    aliases = ["dynamic", "dynamicrenderer"]
     filenames = []
 
     def __init__(self, **options):
         Formatter.__init__(self, **options)
-        self.colorscheme = options.get('colorscheme', None) or ASCIIMATIC_COLORS
-        self.linenos = options.get('linenos', False)
-        self._lineno = 0
+        self.colorscheme = (
+            options.get("colorscheme", None) or ASCIIMATIC_COLORS
+        )
+        self.linenos = options.get("linenos", False)
 
     def format(self, tokensource, outfile):
         return Formatter.format(self, tokensource, outfile)
 
     def _write_lineno(self, outfile):
         self._lineno += 1
-        outfile.write("%s%04d: " % (self._lineno != 1 and '\n' or '', self._lineno))
+        outfile.write(
+            "%s%04d: " % (self._lineno != 1 and "\n" or "", self._lineno)
+        )
 
     def _get_color(self, ttype):
         # self.colorscheme is a dict containing usually generic types, so we
@@ -84,21 +102,23 @@ class DynamicFormatter(Formatter):
         # that's not great. Maybe we could output as lines in a json array.
         # Ideallyh, we'll just be able to output List[DynamicCharacter]
 
-            self._write_lineno(outfile)
+        lineno = 0
 
+        characters = []
+
+        def append_lineo():
+            if self.linenos:
+                characters.append(DynamicCharacter(text=str(lineno).zfill(2)))
+
+        append_lineo()
         for ttype, value in tokensource:
             color = self._get_color(ttype)
 
             for line in value.splitlines(True):
-                if color:
-                    outfile.write(ansiformat(color, line.rstrip('\n')))
-                else:
-                    outfile.write(line.rstrip('\n'))
-                if line.endswith('\n'):
-                    if self.linenos:
-                        self._write_lineno(outfile)
-                    else:
-                        outfile.write('\n')
 
-        if self.linenos:
-            outfile.write("\n")
+                characters.append(DynamicCharacter(text=line, color=color))
+                if line.endswith("\n"):
+                    lineno += 1
+                    append_lineo()
+
+        outfile.write(json.dumps(characters, cls=DataclassEncoder))
