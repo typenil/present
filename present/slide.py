@@ -59,15 +59,17 @@ class Renderable:
         bg_color: int = Screen.COLOUR_BLACK,
         attr: int = 0,
     ) -> PrintList:
-        base = Print(
-            screen,
-            self._print_element(screen),
-            row,
+        kwargs = dict(
             colour=fg_color,
             bg=bg_color,
             attr=attr,
             transparent=False,
         )
+
+        if hasattr(self, "speed"):
+            kwargs["speed"] = self.speed
+
+        base = Print(screen, self._print_element(screen), row, **kwargs)
         return [base]
 
     def render(self):
@@ -195,7 +197,7 @@ class Codio(Renderable):
 
     @property
     def speed(self):
-        speed = self.obj["speed"]
+        speed = self.obj.get("speed", 5)
 
         if speed < 1:
             logger.warn("Codio speed < 1, setting it to 1")
@@ -291,6 +293,19 @@ class Codio(Renderable):
 class SourceFile(Renderable):
     type: str = "source_file"
     dirname: Optional[str] = None
+
+    @property
+    def speed(self):
+        speed = self.obj.get("speed", 5)
+
+        if speed < 1:
+            logger.warn("Codio speed < 1, setting it to 1")
+            speed = 1
+        elif speed > 10:
+            logger.warn("Codio speed > 10, setting it to 10")
+            speed = 10
+
+        return 11 - speed
 
     @cached_property
     def language(self) -> Optional[str]:
