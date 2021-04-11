@@ -98,10 +98,6 @@ class DynamicFormatter(Formatter):
         return color
 
     def format_unencoded(self, tokensource, outfile):
-        # TODO figure out what "outfile" is. If we're forced to write to some sort of string,
-        # that's not great. Maybe we could output as lines in a json array.
-        # Ideallyh, we'll just be able to output List[DynamicCharacter]
-
         lineno = 0
 
         characters = []
@@ -116,7 +112,11 @@ class DynamicFormatter(Formatter):
 
             for line in value.splitlines(True):
 
-                characters.append(DynamicCharacter(text=line, color=color))
+                for char in line:
+                    # We could dump the line, but it makes
+                    # individual characters hard to iterate through
+                    characters.append(DynamicCharacter(text=char, color=color))
+
                 if line.endswith("\n"):
                     lineno += 1
                     append_lineo()

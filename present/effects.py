@@ -53,14 +53,14 @@ class SourceFile(DynamicRenderer):
             DynamicCharacter(**char_kwargs)
             for char_kwargs in json.loads(source)
         ]
-        self._height = height
-        self._width = width
-        self._state = None
+        self._position = 0
 
     def _render_now(self):
         x = y = 0
 
-        for char in self._characters:
+        for idx, char in enumerate(self._characters):
+            if idx > self._position:
+                break
 
             self._write(
                 char.text, x, y, attr=char.attr, bg=char.bg, colour=char.color
@@ -71,6 +71,7 @@ class SourceFile(DynamicRenderer):
             else:
                 x += len(char.text)
 
+        self._position += 1
         return self._plain_image, self._colour_map
 
 
@@ -78,8 +79,6 @@ class Codio(DynamicRenderer):
     def __init__(self, code=None, height=100, width=100):
         super(Codio, self).__init__(height, width)
         self._code = code
-        self._height = height
-        self._width = width
         self._state = None
         self._reset()
 
