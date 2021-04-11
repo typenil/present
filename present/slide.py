@@ -1,8 +1,16 @@
+import json
 import os
 import re
 import shutil
-from typing import Optional
+from typing import Optional, List as ListType
 from dataclasses import dataclass, field
+from functools import cached_property
+
+from asciimatics.effects import Print
+from asciimatics.screen import Screen
+from asciimatics.renderers import (
+    ColourImageFile,
+)
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
@@ -10,8 +18,22 @@ from pygments.formatters import terminal
 from pyfiglet import Figlet
 from loguru import logger
 
+from .dynamic_formatter import (
+    DynamicFormatter,
+    DynamicCharacter,
+    DataclassEncoder,
+)
 from .utils import normalize_name
-from .effects import COLORS, EFFECTS
+from .effects import (
+    COLORS,
+    EFFECTS,
+    SourceFile as SourceFileRenderer,
+    Codio as CodioRenderer,
+    Text as TestRenderer,
+)
+
+
+PrintList = ListType[Print]
 
 
 @dataclass
@@ -24,6 +46,33 @@ class Renderable:
 
     @property
     def type(self) -> str:
+        raise NotImplementedError()
+
+    def _print_element(self, screen: Screen):
+        return TestRenderer(self.render())
+
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        kwargs = dict(
+            colour=fg_color,
+            bg=bg_color,
+            attr=attr,
+            transparent=False,
+        )
+
+        if hasattr(self, "speed"):
+            kwargs["speed"] = self.speed
+
+        base = Print(screen, self._print_element(screen), row, **kwargs)
+        return [base]
+
+    def render(self):
         raise NotImplementedError()
 
 
@@ -52,6 +101,20 @@ class Heading(Renderable):
             return "\n".join([text, "-" * len(text)])
         else:
             return text
+
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        if self.obj["level"] == 3:
+            attr = Screen.A_BOLD
+        return super().as_print_list(
+            screen, row, fg_color=fg_color, bg_color=bg_color, attr=attr
+        )
 
 
 @dataclass
@@ -115,6 +178,18 @@ class BlockCode(Renderable):
         highlighted = self._highlight_code(code, language)
         return self.pad(highlighted)
 
+    def as_print_list(
+        self,
+        screen: Screen,
+        row: int,
+        fg_color: int = Screen.COLOUR_WHITE,
+        bg_color: int = Screen.COLOUR_BLACK,
+        attr: int = 0,
+    ) -> PrintList:
+        return super().as_print_list(
+            screen, row, Screen.COLOUR_WHITE, Screen.COLOUR_BLACK
+        )
+
 
 @dataclass
 class Codio(Renderable):
@@ -122,7 +197,7 @@ class Codio(Renderable):
 
     @property
     def speed(self):
-        speed = self.obj["speed"]
+        speed = self.obj.get("speed", 5)
 
         if speed < 1:
             logger.warn("Codio speed < 1, setting it to 1")
@@ -208,6 +283,83 @@ class Codio(Renderable):
 
         return code
 
+    def _print_element(self, screen: Screen):
+        return CodioRenderer(
+            code=self.render(), width=self.width, height=self.size
+        )
+
+
+@dataclass
+class SourceFile(Renderable):
+    type: str = "source_file"
+    dirname: Optional[str] = None
+
+    @property
+    def speed(self):
+        speed = self.obj.get("speed", 5)
+
+        if speed < 1:
+            logger.warn("Codio speed < 1, setting it to 1")
+            speed = 1
+        elif speed > 10:
+            logger.warn("Codio speed > 10, setting it to 10")
+            speed = 10
+
+        return 11 - speed
+
+    @cached_property
+    def language(self) -> Optional[str]:
+        return self.obj.get("language", None)
+
+    def __post_init__(self):
+        src_path = (
+            os.path.join(
+                self.dirname,
+                os.path.expanduser(self.obj["file"]),
+            )
+            if self.dirname
+            else self.obj["file"]
+        )
+
+        with open(src_path, "r") as infile:
+            lines = infile.readlines()
+            self.obj["source"] = "".join(lines)
+            self.width = self.get_width(lines)
+            self.size = self.get_size(lines)
+
+    @staticmethod
+    def get_width(lines: ListType[str]) -> int:
+        width = 0
+
+        for line in lines:
+            width = max(
+                width,
+                len(line),
+            )
+
+        return width + 4
+
+    @staticmethod
+    def get_size(lines: ListType[str]) -> int:
+        return len(lines) + 2
+
+    def render(self):
+        if self.language:
+            lexer = get_lexer_by_name(self.language, stripall=True)
+            formatter = DynamicFormatter()
+            return highlight(self.obj["source"], lexer, formatter)
+
+        return json.dumps(
+            [DynamicCharacter(text=self.obj["source"])], cls=DataclassEncoder
+        )
+
+    def _print_element(self, screen: Screen):
+        return SourceFileRenderer(
+            source=self.render(),
+            width=self.width,
+            height=self.size,
+        )
+
 
 @dataclass(init=False)
 class Image(Renderable):
@@ -225,6 +377,16 @@ class Image(Renderable):
 
     def render(self):
         raise NotImplementedError
+
+    def _print_element(self, screen: Screen):
+        return ColourImageFile(
+            screen,
+            self.obj["src"],
+            self.size,
+            fill_background=True,
+            uni=screen.unicode_aware,
+            dither=screen.unicode_aware,
+        )
 
 
 @dataclass

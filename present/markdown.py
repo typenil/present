@@ -5,7 +5,14 @@ import os
 import yaml
 import mistune
 
-from .slide import Slide, Paragraph, Image, Codio, RenderableFactory
+from .slide import (
+    Slide,
+    Paragraph,
+    Image,
+    Codio,
+    RenderableFactory,
+    SourceFile,
+)
 
 
 class Markdown(object):
@@ -22,16 +29,14 @@ class Markdown(object):
         slides = []
         ast = mistune.markdown(text, renderer="ast")
 
-        sliden = 0
         bufr = []
 
         def dump_slide():
-            nonlocal bufr, slides, sliden
+            nonlocal bufr, slides
             if not bufr:
                 return
 
             slides.append(Slide(elements=bufr))
-            sliden += 1
             bufr = []
 
         for i, obj in enumerate(ast):
@@ -56,7 +61,13 @@ class Markdown(object):
                     if image["alt"] == "codio":
                         with open(image["src"], "r") as f:
                             codio = yaml.safe_load(f)
-                        bufr.append(Codio(obj=codio))
+
+                        instance = (
+                            SourceFile(obj=codio, dirname=self.dirname)
+                            if codio.get("type") == "sourceFile"
+                            else Codio(obj=codio)
+                        )
+                        bufr.append(instance)
                     else:
                         bufr.append(Image(obj=image))
 
